@@ -7,8 +7,8 @@ import (
 )
 
 func TestNetworkCheckHandler(t *testing.T)  {
-	read := strings.NewReader("{}")
-	req := httptest.NewRequest("POST","http://localhost",read)
+	read := strings.NewReader(`{"ipList": ["192.168.99.100","192.168.99.101","192.168.99.102"]}`)
+	req := httptest.NewRequest("POST","http://localhost:9000",read)
 	networkCheckHandler(nil,req)
 }
 

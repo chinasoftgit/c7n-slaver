@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"encoding/json"
 	"fmt"
+	_ "github.com/go-sql-driver/mysql"
 	"k8s.io/apimachinery/pkg/api/resource"
 )
 
@@ -36,6 +37,8 @@ func (s *Server) HandlerInit() {
 	s.ServerMux.HandleFunc("/ports/start", startPortHandler)
 	s.ServerMux.HandleFunc("/ports/stop", stopPortHandler)
 	s.ServerMux.HandleFunc("/storage", storageCheckHandler)
+	s.ServerMux.HandleFunc("/cmd", cmdHandler)
+	s.ServerMux.HandleFunc("/mysql", mysqlCheckHandler)
 }
 
 func (s *Server) AddHealthHandler() {
@@ -52,6 +55,29 @@ func (s *Server) Start() error {
 	s.Server = server
 	log.Infof("server starting on %s", s.Addr)
 	return server.ListenAndServe()
+}
+
+func mysqlCheckHandler(w http.ResponseWriter, r *http.Request){
+	defer r.Body.Close()
+	data, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		w.Write([]byte(`{"success":false"}`))
+	}
+	dataRequest := &Requst{}
+	json.Unmarshal(data, dataRequest)
+	db,err := dataRequest.Mysql.ConnetMySql()
+	defer db.Close()
+	if err != nil {
+		w.Write([]byte(`{"success":false"}`))
+		return
+	}
+	err = dataRequest.CreateData(db)
+	if err != nil {
+		w.Write([]byte(`{"success":false"}`))
+	} else {
+		log.Info("execute success")
+		w.Write([]byte(`{"success":true"}`))
+	}
 }
 
 func startPortHandler(w http.ResponseWriter, r *http.Request) {
@@ -132,4 +158,21 @@ func storageCheckHandler(w http.ResponseWriter, r *http.Request)  {
 	}
 	b, _ := json.Marshal(storageStatus)
 	w.Write([]byte(b))
+}
+
+func cmdHandler(w http.ResponseWriter, r *http.Request)  {
+	defer r.Body.Close()
+	data, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		w.Write([]byte(`{"success":false}`))
+	}
+	cmdExec := &CommondExec{}
+	json.Unmarshal(data, cmdExec)
+	err = cmdExec.ExecuteCommond()
+	if err != nil {
+		w.Write([]byte(`{"success":false}`))
+	} else {
+		log.Infof("execute commond %s success", cmdExec.CommondLine)
+		w.Write([]byte(`{"success":true}`))
+	}
 }

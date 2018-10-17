@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"database/sql"
 	"os/exec"
+	"io/ioutil"
+	"encoding/json"
 )
 
 type PortRequest struct {
@@ -41,12 +43,22 @@ type Requst struct {
 	SQL  string 		`json:"sql"`
 }
 
-type CommondExec struct {
-	CommondLine string `json:"commond"`
+type CommandExec struct {
+	CommandLine string `json:"command"`
 }
 
-func (C *CommondExec)ExecuteCommond() (err error)  {
-	cmd := exec.Command("bash", "-c", C.CommondLine)
+type C7nInfo struct {
+	Path string 	`json:"path"`
+	Random string 	`json:"random"`
+}
+
+type RandomInfo struct {
+	Url string 		`json:"url"`
+	Random string 	`json:"random"`
+}
+
+func (C *CommandExec)ExecuteCammond() (err error)  {
+	cmd := exec.Command("sh", "-c", C.CommandLine)
 	err = cmd.Run()
 	if err != nil {
 		log.Error(err.Error())
@@ -67,17 +79,17 @@ func (M *MysqlInfo)ConnetMySql() (db *sql.DB, err error)  {
 	}
 	return
 }
-func (R *Requst)CreateData(db *sql.DB) (err error) {
+func (R *Requst)Executed(db *sql.DB) (err error) {
 	if R.Scop == "database" {
 		_,err = db.Exec(R.SQL)
 		if err != nil {
-			log.Errorf("Failed to create database: %s", err)
+			log.Errorf("Failed to execute: %s", err)
 		}
 	} else {
 		_,err = db.Exec(fmt.Sprint("USE ",R.DatabaseName))
 		_,err = db.Exec(R.SQL)
 		if err != nil {
-			log.Errorf("Failed to create table: %s", err)
+			log.Errorf("Failed executee: %s", err)
 		}
 	}
 	return
@@ -111,6 +123,34 @@ func (p *PortRequest) StartServers() error {
 				log.Error(err)
 			}
 		}()
+	}
+	return nil
+}
+func (c7n *C7nInfo)StartMonitor(s *Server) error  {
+	s.ServerMux.HandleFunc(c7n.Path, func(w http.ResponseWriter, r *http.Request) {
+		defer r.Body.Close()
+		Context := fmt.Sprintf(`{"random":"%s"}`,c7n.Random)
+		w.Write([]byte(Context))
+	})
+	return nil
+}
+func (r *RandomInfo)CheckRadom() error {
+	response, err := http.Get(r.Url)
+	defer response.Body.Close()
+	if err != nil {
+		return err
+	}
+	contents, err := ioutil.ReadAll(response.Body)
+	if err != nil {
+		return err
+	}
+	type RD struct {
+		Random string `json:"random"`
+	}
+	ran := &RD{}
+	json.Unmarshal(contents,ran)
+	if ran.Random != r.Random {
+		return fmt.Errorf("host %s random does not match",r.Url)
 	}
 	return nil
 }

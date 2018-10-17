@@ -2,12 +2,12 @@ package server
 
 import (
 	"net/http"
-	"syscall"
 	"github.com/vinkdong/gox/log"
 	"io/ioutil"
 	"encoding/json"
 	"fmt"
 	_ "github.com/go-sql-driver/mysql"
+	"syscall"
 	"k8s.io/apimachinery/pkg/api/resource"
 )
 
@@ -33,12 +33,14 @@ func NewServer(port int) *Server {
 }
 
 func (s *Server) HandlerInit() {
-	s.ServerMux.HandleFunc("/", networkCheckHandler)
+	s.ServerMux.HandleFunc("/network", networkCheckHandler)
 	s.ServerMux.HandleFunc("/ports/start", startPortHandler)
 	s.ServerMux.HandleFunc("/ports/stop", stopPortHandler)
-	s.ServerMux.HandleFunc("/storage", storageCheckHandler)
+	//s.ServerMux.HandleFunc("/storage", storageCheckHandler)
 	s.ServerMux.HandleFunc("/cmd", cmdHandler)
 	s.ServerMux.HandleFunc("/mysql", mysqlCheckHandler)
+	c7nMonitor(s)
+	s.ServerMux.HandleFunc("/random", randomCheckHandler)
 }
 
 func (s *Server) AddHealthHandler() {
@@ -61,22 +63,22 @@ func mysqlCheckHandler(w http.ResponseWriter, r *http.Request){
 	defer r.Body.Close()
 	data, err := ioutil.ReadAll(r.Body)
 	if err != nil {
-		w.Write([]byte(`{"success":false"}`))
+		w.Write([]byte(`{"success":false}`))
 	}
 	dataRequest := &Requst{}
 	json.Unmarshal(data, dataRequest)
 	db,err := dataRequest.Mysql.ConnetMySql()
 	defer db.Close()
 	if err != nil {
-		w.Write([]byte(`{"success":false"}`))
+		w.Write([]byte(`{"success":false}`))
 		return
 	}
-	err = dataRequest.CreateData(db)
+	err = dataRequest.Executed(db)
 	if err != nil {
-		w.Write([]byte(`{"success":false"}`))
+		w.Write([]byte(`{"success":false}`))
 	} else {
 		log.Info("execute success")
-		w.Write([]byte(`{"success":true"}`))
+		w.Write([]byte(`{"success":true}`))
 	}
 }
 
@@ -84,13 +86,13 @@ func startPortHandler(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 	data, err := ioutil.ReadAll(r.Body)
 	if err != nil {
-		w.Write([]byte(`{"success":false"}`))
+		w.Write([]byte(`{"success":false}`))
 	}
 	portRequest := &PortRequest{}
 	json.Unmarshal(data, portRequest)
 	err = portRequest.StartServers()
 	if err != nil {
-		w.Write([]byte(`{"success":false"}`))
+		w.Write([]byte(`{"success":false}`))
 	} else {
 		w.Write([]byte(`{"success":true}`))
 	}
@@ -166,13 +168,48 @@ func cmdHandler(w http.ResponseWriter, r *http.Request)  {
 	if err != nil {
 		w.Write([]byte(`{"success":false}`))
 	}
-	cmdExec := &CommondExec{}
+	cmdExec := &CommandExec{}
 	json.Unmarshal(data, cmdExec)
-	err = cmdExec.ExecuteCommond()
+	err = cmdExec.ExecuteCammond()
 	if err != nil {
 		w.Write([]byte(`{"success":false}`))
 	} else {
-		log.Infof("execute commond %s success", cmdExec.CommondLine)
+		log.Infof("execute command %s success", cmdExec.CommandLine)
+		w.Write([]byte(`{"success":true}`))
+	}
+}
+func c7nMonitor(s *Server)  {
+	s.ServerMux.HandleFunc("/c7nup", func(writer http.ResponseWriter, request *http.Request) {
+		defer request.Body.Close()
+		data, err := ioutil.ReadAll(request.Body)
+		if err != nil {
+			writer.Write([]byte(`{"success":false}`))
+		}
+		c7nInfo := &C7nInfo{}
+		json.Unmarshal(data, c7nInfo)
+		err = c7nInfo.StartMonitor(s)
+		if err != nil {
+			writer.Write([]byte(`{"success":false}`))
+		} else {
+			log.Infof("start listening at %s,the random is %s", c7nInfo.Path,c7nInfo.Random)
+			writer.Write([]byte(`{"success":true}`))
+		}
+	})
+}
+func randomCheckHandler(w http.ResponseWriter, r *http.Request)  {
+	defer r.Body.Close()
+	data, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		w.Write([]byte(`{"success":false}`))
+	}
+	randomInfo := &RandomInfo{}
+	json.Unmarshal(data, randomInfo)
+	err = randomInfo.CheckRadom()
+	if err != nil {
+		log.Error(err)
+		w.Write([]byte(`{"success":false}`))
+	} else {
+		log.Infof("host %s random check success",randomInfo.Url)
 		w.Write([]byte(`{"success":true}`))
 	}
 }

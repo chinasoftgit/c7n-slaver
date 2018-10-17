@@ -57,7 +57,7 @@ type RandomInfo struct {
 	Random string 	`json:"random"`
 }
 
-func (C *CommandExec)ExecuteCammond() (err error)  {
+func (C *CommandExec)ExecuteCommand() (err error)  {
 	cmd := exec.Command("sh", "-c", C.CommandLine)
 	err = cmd.Run()
 	if err != nil {

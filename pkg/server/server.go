@@ -36,7 +36,7 @@ func (s *Server) HandlerInit() {
 	s.ServerMux.HandleFunc("/network", networkCheckHandler)
 	s.ServerMux.HandleFunc("/ports/start", startPortHandler)
 	s.ServerMux.HandleFunc("/ports/stop", stopPortHandler)
-	//s.ServerMux.HandleFunc("/storage", storageCheckHandler)
+	s.ServerMux.HandleFunc("/storage", storageCheckHandler)
 	s.ServerMux.HandleFunc("/cmd", cmdHandler)
 	s.ServerMux.HandleFunc("/mysql", mysqlCheckHandler)
 	c7nMonitor(s)
@@ -170,7 +170,7 @@ func cmdHandler(w http.ResponseWriter, r *http.Request)  {
 	}
 	cmdExec := &CommandExec{}
 	json.Unmarshal(data, cmdExec)
-	err = cmdExec.ExecuteCammond()
+	err = cmdExec.ExecuteCommand()
 	if err != nil {
 		w.Write([]byte(`{"success":false}`))
 	} else {

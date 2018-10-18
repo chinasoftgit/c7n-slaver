@@ -1,0 +1,23 @@
+syntax = "proto3";
+
+package proto;
+
+service RouteCall {
+    rpc CheckHealth (Check) returns (Result) {
+    }
+
+}
+
+message Check {
+    string type = 1;
+    string host = 2;
+    string schema = 3;
+    int32 port = 4;
+}
+
+
+message Result {
+    // The name of the feature.
+    bool success = 1;
+    string message = 2;
+}

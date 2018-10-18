@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	_ "github.com/go-sql-driver/mysql"
+	"strings"
 	"syscall"
 	"k8s.io/apimachinery/pkg/api/resource"
 )
@@ -23,6 +24,7 @@ type Server struct {
 }
 
 var startedServer []*Server
+var DomainMap  = make(map[string]string)
 
 func NewServer(port int) *Server {
 	s := &Server{
@@ -36,11 +38,11 @@ func (s *Server) HandlerInit() {
 	s.ServerMux.HandleFunc("/network", networkCheckHandler)
 	s.ServerMux.HandleFunc("/ports/start", startPortHandler)
 	s.ServerMux.HandleFunc("/ports/stop", stopPortHandler)
-	s.ServerMux.HandleFunc("/storage", storageCheckHandler)
+	//s.ServerMux.HandleFunc("/storage", storageCheckHandler)
 	s.ServerMux.HandleFunc("/cmd", cmdHandler)
 	s.ServerMux.HandleFunc("/mysql", mysqlCheckHandler)
-	c7nMonitor(s)
-	s.ServerMux.HandleFunc("/random", randomCheckHandler)
+	s.ServerMux.HandleFunc("/c7n/acme-challenge", c7nAcmeHandler)
+	s.ServerMux.HandleFunc("/forward", forwardHandler)
 }
 
 func (s *Server) AddHealthHandler() {
@@ -178,38 +180,47 @@ func cmdHandler(w http.ResponseWriter, r *http.Request)  {
 		w.Write([]byte(`{"success":true}`))
 	}
 }
-func c7nMonitor(s *Server)  {
-	s.ServerMux.HandleFunc("/c7nup", func(writer http.ResponseWriter, request *http.Request) {
-		defer request.Body.Close()
-		data, err := ioutil.ReadAll(request.Body)
+func c7nAcmeHandler(w http.ResponseWriter, r *http.Request)  {
+	if r.Method == http.MethodPost {
+		data , err := ioutil.ReadAll(r.Body)
+		defer r.Body.Close()
 		if err != nil {
-			writer.Write([]byte(`{"success":false}`))
-		}
-		c7nInfo := &C7nInfo{}
-		json.Unmarshal(data, c7nInfo)
-		err = c7nInfo.StartMonitor(s)
-		if err != nil {
-			writer.Write([]byte(`{"success":false}`))
+			log.Error(err)
+			w.Write([]byte(`{"success":false}`))
 		} else {
-			log.Infof("start listening at %s,the random is %s", c7nInfo.Path,c7nInfo.Random)
-			writer.Write([]byte(`{"success":true}`))
+			r := &Request{}
+			json.Unmarshal(data,r)
+			DomainMap[r.Domain] = r.Value
+			log.Infof("add domain map: %s => %s",r.Domain,r.Value)
+			w.Write([]byte(`{"success":true}`))
 		}
-	})
+	} else {
+		domain := r.Host
+		loc := strings.Index(domain,":")
+		if loc != -1 {
+			domain = domain[:loc]
+		}
+		log.Infof("has request in, domain is %s ,method is %s",domain,r.Method)
+		w.Write([]byte(DomainMap[domain]))
+	}
 }
-func randomCheckHandler(w http.ResponseWriter, r *http.Request)  {
-	defer r.Body.Close()
-	data, err := ioutil.ReadAll(r.Body)
+
+func forwardHandler(w http.ResponseWriter, r *http.Request)  {
+	data , err := ioutil.ReadAll(r.Body)
 	if err != nil {
+		log.Error(err)
 		w.Write([]byte(`{"success":false}`))
 	}
-	randomInfo := &RandomInfo{}
-	json.Unmarshal(data, randomInfo)
-	err = randomInfo.CheckRadom()
+	defer r.Body.Close()
+	f := &Forward{}
+	json.Unmarshal(data,f)
+	resp, err := http.Get(f.Url)
 	if err != nil {
 		log.Error(err)
 		w.Write([]byte(`{"success":false}`))
 	} else {
-		log.Infof("host %s random check success",randomInfo.Url)
-		w.Write([]byte(`{"success":true}`))
+		body, _:= ioutil.ReadAll(resp.Body)
+		defer resp.Body.Close()
+		w.Write(body)
 	}
 }

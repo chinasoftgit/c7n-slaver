@@ -7,8 +7,6 @@ import (
 	"fmt"
 	"database/sql"
 	"os/exec"
-	"io/ioutil"
-	"encoding/json"
 )
 
 type PortRequest struct {
@@ -47,14 +45,13 @@ type CommandExec struct {
 	CommandLine string `json:"command"`
 }
 
-type C7nInfo struct {
-	Path string 	`json:"path"`
-	Random string 	`json:"random"`
+type Request struct {
+	Domain string `json:"domain"`
+	Value  string `json:"value"`
 }
 
-type RandomInfo struct {
-	Url string 		`json:"url"`
-	Random string 	`json:"random"`
+type Forward struct {
+	Url string    `json:"url"`
 }
 
 func (C *CommandExec)ExecuteCommand() (err error)  {
@@ -123,34 +120,6 @@ func (p *PortRequest) StartServers() error {
 				log.Error(err)
 			}
 		}()
-	}
-	return nil
-}
-func (c7n *C7nInfo)StartMonitor(s *Server) error  {
-	s.ServerMux.HandleFunc(c7n.Path, func(w http.ResponseWriter, r *http.Request) {
-		defer r.Body.Close()
-		Context := fmt.Sprintf(`{"random":"%s"}`,c7n.Random)
-		w.Write([]byte(Context))
-	})
-	return nil
-}
-func (r *RandomInfo)CheckRadom() error {
-	response, err := http.Get(r.Url)
-	defer response.Body.Close()
-	if err != nil {
-		return err
-	}
-	contents, err := ioutil.ReadAll(response.Body)
-	if err != nil {
-		return err
-	}
-	type RD struct {
-		Random string `json:"random"`
-	}
-	ran := &RD{}
-	json.Unmarshal(contents,ran)
-	if ran.Random != r.Random {
-		return fmt.Errorf("host %s random does not match",r.Url)
 	}
 	return nil
 }

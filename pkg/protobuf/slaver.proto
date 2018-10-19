@@ -13,6 +13,7 @@ message Check {
     string host = 2;
     string schema = 3;
     int32 port = 4;
+    string path = 5;
 }
 
 

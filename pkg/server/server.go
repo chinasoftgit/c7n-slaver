@@ -35,7 +35,6 @@ func NewServer(port int) *Server {
 }
 
 func (s *Server) HandlerInit() {
-	s.InitGRpcServer()
 	s.ServerMux.HandleFunc("/network", networkCheckHandler)
 	s.ServerMux.HandleFunc("/ports/start", startPortHandler)
 	s.ServerMux.HandleFunc("/ports/stop", stopPortHandler)

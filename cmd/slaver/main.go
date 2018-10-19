@@ -41,6 +41,7 @@ to quickly create a Cobra application.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		s := server.NewServer(9000)
 		s.HandlerInit()
+		s.InitGRpcServer(9001)
 		err := s.Start()
 		log.Error(err)
 	},

@@ -9,6 +9,8 @@ import (
 	"fmt"
 	"net/http"
 	"time"
+	"io"
+	"github.com/choerodon/c7n-slaver/pkg/mysql"
 )
 
 func (s *Server) CheckHealth(ctx context.Context, c *pb.Check) (*pb.Result, error) {
@@ -29,27 +31,27 @@ func (s *Server) CheckHealth(ctx context.Context, c *pb.Check) (*pb.Result, erro
 		if err != nil {
 			r.Success = false
 			r.Message = err.Error()
-			return r,err
+			return r, err
 		}
 
 		client := http.Client{}
-		resp ,err := client.Do(req)
+		resp, err := client.Do(req)
 
-		if err !=nil {
+		if err != nil {
 			r.Success = false
 			r.Message = err.Error()
-			return r,err
+			return r, err
 		}
 
 		if resp.StatusCode >= 400 || resp.StatusCode < 200 {
 			r.Success = false
-			r.Message = fmt.Sprintf("get response code %d",resp.StatusCode)
-			return r,nil
+			r.Message = fmt.Sprintf("get response code %d", resp.StatusCode)
+			return r, nil
 		}
 	}
 	if c.Type == "socket" {
-		addr := fmt.Sprintf("%s:%d",c.Host,c.Port)
-		conn, err := net.DialTimeout("tcp", addr,time.Second * 2)
+		addr := fmt.Sprintf("%s:%d", c.Host, c.Port)
+		conn, err := net.DialTimeout("tcp", addr, time.Second*2)
 		log.Infof("socket checking %s", addr)
 		if err != nil {
 			log.Infof("Connection error: %s", err)
@@ -62,8 +64,54 @@ func (s *Server) CheckHealth(ctx context.Context, c *pb.Check) (*pb.Result, erro
 	return r, nil
 }
 
+func (s *Server) ExecuteSql(stream pb.RouteCall_ExecuteSqlServer) error {
+	in, err := stream.Recv()
+	if err != nil {
+		log.Error(err)
+		return err
+	}
+	mysql := mysql.Mysql{
+		Username: in.Mysql.Username,
+		Password: in.Mysql.Password,
+		Host:     in.Mysql.Host,
+		Port:     in.Mysql.Port,
+	}
+	db, err := mysql.Connect()
+	defer db.Close()
+
+	for {
+		in, err = stream.Recv()
+		if err == io.EOF {
+			return nil
+		}
+		if err != nil {
+			return err
+		}
+		log.Infof("executing: %s",in.Sql)
+		_, err = db.Exec(in.Sql)
+
+		if err != nil {
+			goto err
+		}
+		log.Success("executed")
+		stream.Send(&pb.RouteSql{
+			Success: true,
+		})
+	}
+err:
+	log.Error(err)
+	if err != nil {
+		stream.Send(&pb.RouteSql{
+			Success: false,
+			Message: err.Error(),
+		})
+		return err
+	}
+	return nil
+}
+
 func (s *Server) InitGRpcServer(port int) {
-	lis, err := net.Listen("tcp", fmt.Sprintf(":%d",port))
+	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
 	if err != nil {
 		log.Errorf("failed to listen: %v", err)
 	}

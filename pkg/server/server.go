@@ -214,13 +214,17 @@ func forwardHandler(w http.ResponseWriter, r *http.Request)  {
 	defer r.Body.Close()
 	f := &Forward{}
 	json.Unmarshal(data,f)
-	resp, err := http.Get(f.Url)
+	req,err  := http.NewRequest(f.Method,f.Url,strings.NewReader(f.Body))
+	req.Header = r.Header
+	client := http.Client{}
+	resp, err := client.Do(req)
 	if err != nil {
 		log.Error(err)
 		w.Write([]byte(`{"success":false}`))
 	} else {
 		body, _:= ioutil.ReadAll(resp.Body)
 		defer resp.Body.Close()
+		w.WriteHeader(resp.StatusCode)
 		w.Write(body)
 	}
 }

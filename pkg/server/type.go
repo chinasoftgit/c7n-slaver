@@ -52,6 +52,9 @@ type Request struct {
 
 type Forward struct {
 	Url string    `json:"url"`
+	Body string   `json:"body"`
+	Method string `json:"method"`
+	Header http.Header `json:"header"`
 }
 
 func (C *CommandExec)ExecuteCommand() (err error)  {

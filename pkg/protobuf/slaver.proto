@@ -5,6 +5,8 @@ package proto;
 service RouteCall {
     rpc CheckHealth (Check) returns (Result) {
     }
+    rpc ExecuteSql (stream RouteSql) returns (stream RouteSql) {
+    }
 
 }
 
@@ -14,6 +16,21 @@ message Check {
     string schema = 3;
     int32 port = 4;
     string path = 5;
+}
+
+message Mysql {
+    string username = 1;
+    string password = 2;
+    string host = 3;
+    int32 port = 4;
+}
+
+message RouteSql {
+    bool success = 1;
+    string scope = 2;
+    string sql = 3;
+    string message = 4;
+    Mysql mysql = 5;
 }
 
 

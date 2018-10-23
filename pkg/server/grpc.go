@@ -11,6 +11,8 @@ import (
 	"time"
 	"io"
 	"github.com/choerodon/c7n-slaver/pkg/mysql"
+	"strings"
+	"os/exec"
 )
 
 func (s *Server) CheckHealth(ctx context.Context, c *pb.Check) (*pb.Result, error) {
@@ -62,6 +64,33 @@ func (s *Server) CheckHealth(ctx context.Context, c *pb.Check) (*pb.Result, erro
 		}
 	}
 	return r, nil
+}
+
+func (s *Server) ExecuteCommand(stream pb.RouteCall_ExecuteCommandServer)  error {
+
+	for {
+		in, err := stream.Recv()
+		if err == io.EOF {
+			return nil
+		}
+		if err != nil {
+			return err
+		}
+		log.Infof("executing: %s %s", in.Name, strings.Join(in.Args, " "))
+		out, err := exec.Command(in.Name, in.Args...).Output()
+		if err != nil {
+			in.Success = false
+			in.Message = err.Error()
+			log.Error(err.Error())
+		} else {
+			in.Success = true
+			in.Message = string(out)
+		}
+		if err := stream.Send(in); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (s *Server) ExecuteSql(stream pb.RouteCall_ExecuteSqlServer) error {

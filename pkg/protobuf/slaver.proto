@@ -7,7 +7,8 @@ service RouteCall {
     }
     rpc ExecuteSql (stream RouteSql) returns (stream RouteSql) {
     }
-
+    rpc ExecuteCommand (stream RouteCommand) returns (stream RouteCommand) {
+    }
 }
 
 message Check {
@@ -33,6 +34,13 @@ message RouteSql {
     Mysql mysql = 5;
 }
 
+message RouteCommand {
+    bool success = 1;
+    string name = 2;
+    repeated string args = 3;
+    string message = 4;
+    int32 status = 5;
+}
 
 message Result {
     // The name of the feature.

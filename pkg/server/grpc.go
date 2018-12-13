@@ -13,6 +13,7 @@ import (
 	"github.com/choerodon/c7n-slaver/pkg/mysql"
 	"strings"
 	"os/exec"
+	"io/ioutil"
 )
 
 func (s *Server) CheckHealth(ctx context.Context, c *pb.Check) (*pb.Result, error) {
@@ -66,7 +67,7 @@ func (s *Server) CheckHealth(ctx context.Context, c *pb.Check) (*pb.Result, erro
 	return r, nil
 }
 
-func (s *Server) ExecuteCommand(stream pb.RouteCall_ExecuteCommandServer)  error {
+func (s *Server) ExecuteCommand(stream pb.RouteCall_ExecuteCommandServer) error {
 
 	for {
 		in, err := stream.Recv()
@@ -116,7 +117,7 @@ func (s *Server) ExecuteSql(stream pb.RouteCall_ExecuteSqlServer) error {
 		if err != nil {
 			return err
 		}
-		log.Infof("executing: %s",in.Sql)
+		log.Infof("executing: %s", in.Sql)
 		_, err = db.Exec(in.Sql)
 
 		if err != nil {
@@ -135,6 +136,48 @@ err:
 			Message: err.Error(),
 		})
 		return err
+	}
+	return nil
+}
+
+func (s *Server) ExecuteRequest(stream pb.RouteCall_ExecuteRequestServer) error {
+	client := http.Client{}
+	for {
+		in, err := stream.Recv()
+		if err == io.EOF {
+			return nil
+		}
+		if err != nil {
+			return err
+		}
+		reqUrl := fmt.Sprintf("%s://%s:%d%s", in.Schema, in.Host, in.Port, in.Path)
+		log.Infof("%s: %s", in.Method, reqUrl)
+
+		req, err := http.NewRequest(in.Method, reqUrl, strings.NewReader(in.Body))
+		var header = make(map[string][]string)
+		for k, v := range in.Header {
+			header[k] = v.Value
+		}
+		req.Header = header
+		resp, err := client.Do(req)
+		out := &pb.Result{}
+		if err != nil {
+			out.Success = false
+			out.Message = err.Error()
+			log.Error(err.Error())
+		} else {
+			out.StatusCode = int32(resp.StatusCode)
+			data, err := ioutil.ReadAll(resp.Body)
+			if err != nil {
+				out.Success = false
+			} else {
+				out.Success = true
+				out.Message = string(data)
+			}
+		}
+		if err := stream.Send(out); err != nil {
+			return err
+		}
 	}
 	return nil
 }

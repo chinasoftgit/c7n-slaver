@@ -1,19 +1,19 @@
 package server
 
 import (
-	"google.golang.org/grpc"
-	pb "github.com/choerodon/c7n-slaver/pkg/protobuf"
 	"context"
-	"github.com/vinkdong/gox/log"
-	"net"
 	"fmt"
-	"net/http"
-	"time"
-	"io"
 	"github.com/choerodon/c7n-slaver/pkg/mysql"
-	"strings"
-	"os/exec"
+	pb "github.com/choerodon/c7n-slaver/pkg/protobuf"
+	"github.com/vinkdong/gox/log"
+	"google.golang.org/grpc"
+	"io"
 	"io/ioutil"
+	"net"
+	"net/http"
+	"os/exec"
+	"strings"
+	"time"
 )
 
 func (s *Server) CheckHealth(ctx context.Context, c *pb.Check) (*pb.Result, error) {

@@ -1,15 +1,15 @@
 package server
 
 import (
-	"net/http"
-	"github.com/vinkdong/gox/log"
-	"io/ioutil"
 	"encoding/json"
 	"fmt"
 	_ "github.com/go-sql-driver/mysql"
+	"github.com/vinkdong/gox/log"
+	"io/ioutil"
+	"k8s.io/apimachinery/pkg/api/resource"
+	"net/http"
 	"strings"
 	"syscall"
-	"k8s.io/apimachinery/pkg/api/resource"
 )
 
 const (
@@ -24,7 +24,7 @@ type Server struct {
 }
 
 var startedServer []*Server
-var DomainMap  = make(map[string]string)
+var DomainMap = make(map[string]string)
 
 func NewServer(port int) *Server {
 	s := &Server{
@@ -61,7 +61,7 @@ func (s *Server) Start() error {
 	return server.ListenAndServe()
 }
 
-func mysqlCheckHandler(w http.ResponseWriter, r *http.Request){
+func mysqlCheckHandler(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 	data, err := ioutil.ReadAll(r.Body)
 	if err != nil {
@@ -69,7 +69,7 @@ func mysqlCheckHandler(w http.ResponseWriter, r *http.Request){
 	}
 	dataRequest := &Requst{}
 	json.Unmarshal(data, dataRequest)
-	db,err := dataRequest.Mysql.ConnetMySql()
+	db, err := dataRequest.Mysql.ConnetMySql()
 	defer db.Close()
 	if err != nil {
 		w.Write([]byte(`{"success":false}`))
@@ -138,7 +138,7 @@ func DiskUsage(path string) (diskFree int64) {
 	diskFree = int64(fs.Bfree * uint64(fs.Bsize))
 	return
 }
-func storageCheckHandler(w http.ResponseWriter, r *http.Request)  {
+func storageCheckHandler(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 	data, err := ioutil.ReadAll(r.Body)
 	if err != nil {
@@ -158,13 +158,13 @@ func storageCheckHandler(w http.ResponseWriter, r *http.Request)  {
 	} else {
 		storageStatus.Success = false
 		memorySize := resource.NewQuantity(diskFree, resource.BinarySI)
-		storageStatus.Free = fmt.Sprintf("%v",memorySize)
+		storageStatus.Free = fmt.Sprintf("%v", memorySize)
 	}
 	b, _ := json.Marshal(storageStatus)
 	w.Write([]byte(b))
 }
 
-func cmdHandler(w http.ResponseWriter, r *http.Request)  {
+func cmdHandler(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 	data, err := ioutil.ReadAll(r.Body)
 	if err != nil {
@@ -180,41 +180,41 @@ func cmdHandler(w http.ResponseWriter, r *http.Request)  {
 		w.Write([]byte(`{"success":true}`))
 	}
 }
-func c7nAcmeHandler(w http.ResponseWriter, r *http.Request)  {
+func c7nAcmeHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodPost {
-		data , err := ioutil.ReadAll(r.Body)
+		data, err := ioutil.ReadAll(r.Body)
 		defer r.Body.Close()
 		if err != nil {
 			log.Error(err)
 			w.Write([]byte(`{"success":false}`))
 		} else {
 			r := &Request{}
-			json.Unmarshal(data,r)
+			json.Unmarshal(data, r)
 			DomainMap[r.Domain] = r.Value
-			log.Infof("add domain map: %s => %s",r.Domain,r.Value)
+			log.Infof("add domain map: %s => %s", r.Domain, r.Value)
 			w.Write([]byte(`{"success":true}`))
 		}
 	} else {
 		domain := r.Host
-		loc := strings.Index(domain,":")
+		loc := strings.Index(domain, ":")
 		if loc != -1 {
 			domain = domain[:loc]
 		}
-		log.Infof("has request in, domain is %s ,method is %s",domain,r.Method)
+		log.Infof("has request in, domain is %s ,method is %s", domain, r.Method)
 		w.Write([]byte(DomainMap[domain]))
 	}
 }
 
-func forwardHandler(w http.ResponseWriter, r *http.Request)  {
-	data , err := ioutil.ReadAll(r.Body)
+func forwardHandler(w http.ResponseWriter, r *http.Request) {
+	data, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		log.Error(err)
 		w.Write([]byte(`{"success":false}`))
 	}
 	defer r.Body.Close()
 	f := &Forward{}
-	json.Unmarshal(data,f)
-	req,err  := http.NewRequest(f.Method,f.Url,strings.NewReader(f.Body))
+	json.Unmarshal(data, f)
+	req, err := http.NewRequest(f.Method, f.Url, strings.NewReader(f.Body))
 	req.Header = r.Header
 	client := http.Client{}
 	resp, err := client.Do(req)
@@ -222,7 +222,7 @@ func forwardHandler(w http.ResponseWriter, r *http.Request)  {
 		log.Error(err)
 		w.Write([]byte(`{"success":false}`))
 	} else {
-		body, _:= ioutil.ReadAll(resp.Body)
+		body, _ := ioutil.ReadAll(resp.Body)
 		defer resp.Body.Close()
 		w.WriteHeader(resp.StatusCode)
 		w.Write(body)

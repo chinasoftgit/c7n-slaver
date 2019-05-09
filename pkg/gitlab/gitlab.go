@@ -8,7 +8,6 @@ func (g *Gitlab) getToken() {
 
 }
 
-
 func (g *Gitlab) ResetPassword() {
 
 }

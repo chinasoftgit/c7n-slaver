@@ -1,12 +1,12 @@
 package server
 
 import (
+	"database/sql"
+	"fmt"
 	"github.com/vinkdong/gox/log"
 	"net/http"
-	"time"
-	"fmt"
-	"database/sql"
 	"os/exec"
+	"time"
 )
 
 type PortRequest struct {
@@ -15,17 +15,17 @@ type PortRequest struct {
 
 type ServerAddr struct {
 	Hosts []string `json:"hosts"`
-	Ports []int `json:"ports"`
+	Ports []int    `json:"ports"`
 }
 
 type MountPathInfo struct {
-	Path string `json:"path"`
+	Path    string `json:"path"`
 	Require string `json:"require"`
 }
 
 type StorageStatus struct {
-	Success bool `json:"success"`
-	Free string  `json:"free"`
+	Success bool   `json:"success"`
+	Free    string `json:"free"`
 }
 type MysqlInfo struct {
 	MysqlHost string `json:"mysql_host"`
@@ -35,10 +35,10 @@ type MysqlInfo struct {
 }
 
 type Requst struct {
-	Scop string 		`json:"scop"`
-	Mysql MysqlInfo 	`json:"mysql_info"`
-	DatabaseName string	`json:"database_name"`
-	SQL  string 		`json:"sql"`
+	Scop         string    `json:"scop"`
+	Mysql        MysqlInfo `json:"mysql_info"`
+	DatabaseName string    `json:"database_name"`
+	SQL          string    `json:"sql"`
 }
 
 type CommandExec struct {
@@ -51,13 +51,13 @@ type Request struct {
 }
 
 type Forward struct {
-	Url string    `json:"url"`
-	Body string   `json:"body"`
-	Method string `json:"method"`
+	Url    string      `json:"url"`
+	Body   string      `json:"body"`
+	Method string      `json:"method"`
 	Header http.Header `json:"header"`
 }
 
-func (C *CommandExec)ExecuteCommand() (err error)  {
+func (C *CommandExec) ExecuteCommand() (err error) {
 	cmd := exec.Command("sh", "-c", C.CommandLine)
 	err = cmd.Run()
 	if err != nil {
@@ -66,8 +66,8 @@ func (C *CommandExec)ExecuteCommand() (err error)  {
 	return
 }
 
-func (M *MysqlInfo)ConnetMySql() (db *sql.DB, err error)  {
-	ConnetInfo   := fmt.Sprint( M.MysqlName,":",M.MysqlPwd,"@tcp(",M.MysqlHost,":",M.MysqlPort,")/?charset=utf8&timeout=3s")
+func (M *MysqlInfo) ConnetMySql() (db *sql.DB, err error) {
+	ConnetInfo := fmt.Sprint(M.MysqlName, ":", M.MysqlPwd, "@tcp(", M.MysqlHost, ":", M.MysqlPort, ")/?charset=utf8&timeout=3s")
 	db, err = sql.Open("mysql", ConnetInfo)
 	if err != nil {
 		log.Errorf("Failed to connect mysql: %s", err)
@@ -79,15 +79,15 @@ func (M *MysqlInfo)ConnetMySql() (db *sql.DB, err error)  {
 	}
 	return
 }
-func (R *Requst)Executed(db *sql.DB) (err error) {
+func (R *Requst) Executed(db *sql.DB) (err error) {
 	if R.Scop == "database" {
-		_,err = db.Exec(R.SQL)
+		_, err = db.Exec(R.SQL)
 		if err != nil {
 			log.Errorf("Failed to execute: %s", err)
 		}
 	} else {
-		_,err = db.Exec(fmt.Sprint("USE ",R.DatabaseName))
-		_,err = db.Exec(R.SQL)
+		_, err = db.Exec(fmt.Sprint("USE ", R.DatabaseName))
+		_, err = db.Exec(R.SQL)
 		if err != nil {
 			log.Errorf("Failed executee: %s", err)
 		}
@@ -95,18 +95,18 @@ func (R *Requst)Executed(db *sql.DB) (err error) {
 	return
 }
 
-func (s *ServerAddr) StartNetCheck() (err error){
+func (s *ServerAddr) StartNetCheck() (err error) {
 	c := &http.Client{
 		Timeout: time.Second,
 	}
 	for _, ip := range s.Hosts {
 		for _, port := range s.Ports {
-			_, err = c.Get(fmt.Sprint("http://",ip,":",port,"/health"))
+			_, err = c.Get(fmt.Sprint("http://", ip, ":", port, "/health"))
 			if err != nil {
 				log.Error(err)
 				return
 			}
-			log.Info(fmt.Sprint("http://",ip,":",port,"/health"," ok"))
+			log.Info(fmt.Sprint("http://", ip, ":", port, "/health", " ok"))
 		}
 	}
 	return

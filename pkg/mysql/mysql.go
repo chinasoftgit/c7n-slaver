@@ -8,8 +8,8 @@ import (
 
 type Mysql struct {
 	Host     string `json:"host"`
-	Port     int32 `json:"port"`
-	Username     string `json:"name"`
+	Port     int32  `json:"port"`
+	Username string `json:"name"`
 	Password string `json:"password"`
 }
 
@@ -26,4 +26,3 @@ func (m *Mysql) Connect() (db *sql.DB, err error) {
 	}
 	return
 }
-

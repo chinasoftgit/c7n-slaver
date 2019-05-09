@@ -16,12 +16,12 @@ package main
 
 import (
 	"fmt"
-	"os"
+	"github.com/choerodon/c7n-slaver/pkg/server"
 	"github.com/mitchellh/go-homedir"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	"github.com/choerodon/c7n-slaver/pkg/server"
 	"github.com/vinkdong/gox/log"
+	"os"
 )
 
 var cfgFile string
